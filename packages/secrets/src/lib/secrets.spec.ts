@@ -33,19 +33,57 @@ describe('Secrets', () => {
     expect(secrets.get('FOO')).toBe('foo');
   });
 
-  it('ignores entries that are not files', async () => {
+  it('throws when a secret is not set in the environment', async () => {
+    delete process.env.FOO;
+
+    const secrets = await Secrets.read<AppSecrets>({ readMode: 'environment' });
+
+    expect(() => secrets.get('FOO')).toThrow(
+      'Secret "FOO" is not set in the environment.',
+    );
+  });
+
+  it('returns empty secrets as empty strings', async () => {
+    process.env.FOO = '';
+
+    const secrets = await Secrets.read<AppSecrets>();
+
+    expect(secrets.get('FOO')).toBe('');
+  });
+
+  it('reads files under basePath and trims their contents', async () => {
     const basePath = await mkdtemp(join(tmpdir(), 'secrets-'));
     try {
       await writeFile(join(basePath, 'FOO'), 'foo\n');
-      await mkdir(join(basePath, 'nested'));
+      await writeFile(join(basePath, 'BAR'), 'bar');
 
-      const secrets = await Secrets.read<Record<string, string>>({
+      const secrets = await Secrets.read<AppSecrets>({
         readMode: 'file',
         basePath,
       });
 
       expect(secrets.get('FOO')).toBe('foo');
-      expect(secrets.get('nested')).toBeUndefined();
+      expect(secrets.get('BAR')).toBe('bar');
+    } finally {
+      await rm(basePath, { recursive: true, force: true });
+    }
+  });
+
+  it('throws naming the missing file when no file exists for a secret', async () => {
+    const basePath = await mkdtemp(join(tmpdir(), 'secrets-'));
+    try {
+      await writeFile(join(basePath, 'FOO'), 'foo');
+      await mkdir(join(basePath, 'BAR'));
+
+      const secrets = await Secrets.read<AppSecrets>({
+        readMode: 'file',
+        basePath,
+      });
+
+      expect(secrets.get('FOO')).toBe('foo');
+      expect(() => secrets.get('BAR')).toThrow(
+        `Secret file "${join(basePath, 'BAR')}" does not exist.`,
+      );
     } finally {
       await rm(basePath, { recursive: true, force: true });
     }

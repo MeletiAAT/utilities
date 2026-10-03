@@ -1,6 +1,7 @@
 {
   "name": "@utilities/source",
   "version": "0.0.0",
+  "packageManager": "pnpm@11.15.1",
   "license": "MIT",
   "scripts": {},
   "private": true,

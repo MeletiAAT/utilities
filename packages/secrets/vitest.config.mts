@@ -3,7 +3,7 @@ export default defineConfig(() => ({
   root: import.meta.dirname,
   cacheDir: '../../node_modules/.vite/packages/secrets',
   test: {
-    name: '@utilities/secrets',
+    name: '@meleti/secrets',
     watch: false,
     globals: true,
     environment: 'node',

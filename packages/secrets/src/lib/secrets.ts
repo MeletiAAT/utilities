@@ -41,18 +41,32 @@ export class Secrets<
   T extends Record<string, string> = Record<string, string>,
 > {
   readonly #data: T;
+  readonly #options: SecretsOptions;
 
-  private constructor(data: T) {
+  private constructor(data: T, options: SecretsOptions) {
     this.#data = data;
+    this.#options = options;
   }
 
   /**
    * @description Reads a resolved secret.
    *
    * @param key - Name of the secret.
+   * @throws {Error} When the secret is not set in the source, naming the
+   * file that does not exist when reading from files.
    */
   get<K extends keyof T & string>(key: K): T[K] {
-    return this.#data[key];
+    const value: T[K] | undefined = this.#data[key];
+
+    if (value === undefined) {
+      throw new Error(
+        this.#options.readMode === 'file'
+          ? `Secret file "${join(this.#options.basePath, key)}" does not exist.`
+          : `Secret "${key}" is not set in the environment.`,
+      );
+    }
+
+    return value;
   }
 
   /**
@@ -67,9 +81,12 @@ export class Secrets<
   ): Promise<Secrets<S>> {
     const config = options ?? { readMode: 'environment' };
     if (config.readMode === 'file') {
-      return new Secrets<S>((await readSecretFiles(config.basePath)) as S);
+      return new Secrets<S>(
+        (await readSecretFiles(config.basePath)) as S,
+        config,
+      );
     }
-    return new Secrets<S>(readEnvironment() as S);
+    return new Secrets<S>(readEnvironment() as S, config);
   }
 }
 
