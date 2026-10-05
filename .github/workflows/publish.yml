@@ -21,14 +21,14 @@ jobs:
         with:
           node-version: 22
           registry-url: https://npm.pkg.github.com
-          scope: '@meleti'
+          scope: '@meletiaat'
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm exec nx run-many -t lint typecheck build
 
-      - run: pnpm exec nx run @meleti/secrets:test --run
+      - run: pnpm exec nx run @meletiaat/secrets:test --run
 
       - run: npm publish --access public
         working-directory: packages/secrets

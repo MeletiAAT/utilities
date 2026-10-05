@@ -7,22 +7,22 @@ Use `environment` for local development, `file` on Kubernetes.
 
 ## Install
 
-Published to the Meleti GitHub Packages npm registry:
+Published to GitHub Packages under the `@meletiaat` scope:
 
 ```sh
-npm install @meleti/secrets --registry=https://npm.pkg.github.com
+npm install @meletiaat/secrets --registry=https://npm.pkg.github.com
 ```
 
 ```ini
 # .npmrc
-@meleti:registry=https://npm.pkg.github.com
+@meletiaat:registry=https://npm.pkg.github.com
 //npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
 ```
 
 ## Usage
 
 ```ts
-import { Secrets } from '@meleti/secrets';
+import { Secrets } from '@meletiaat/secrets';
 
 type AppSecrets = {
   DB_PASSWORD: string;
