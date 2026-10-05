@@ -30,7 +30,7 @@ jobs:
 
       - run: pnpm exec nx run @meleti/secrets:test --run
 
-      - run: npm publish --access private
+      - run: npm publish --access public
         working-directory: packages/secrets
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
