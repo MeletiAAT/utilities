@@ -53,6 +53,55 @@ const secrets = await Secrets.read<AppSecrets>({
 secrets.get('PORT');
 ```
 
+## NestJS
+
+`@nestjs/common` is an optional peer dependency: installing `@meletiaat/secrets` outside Nest
+installs nothing new. Nest applications import `SecretsModule` from the `@meletiaat/secrets/nestjs`
+entry point, which reads the secrets once at bootstrap and exports the container under the `Secrets`
+token:
+
+```ts
+import { Module, Injectable } from '@nestjs/common';
+import { Secrets } from '@meletiaat/secrets';
+import { SecretsModule } from '@meletiaat/secrets/nestjs';
+
+type AppSecrets = {
+  DB_PASSWORD: string;
+  PORT: string;
+};
+
+@Module({
+  imports: [
+    SecretsModule.forRoot({ readMode: 'file', basePath: '/run/secrets' }),
+  ],
+})
+export class AppModule {}
+
+@Injectable()
+export class DatabaseService {
+  constructor(private readonly secrets: Secrets<AppSecrets>) {}
+
+  connect() {
+    return new Database(this.secrets.get('DB_PASSWORD'));
+  }
+}
+```
+
+`forRoot` takes the same options as `Secrets.read` and an optional second argument
+(`{ isGlobal: true }`) to register the module globally. When the options themselves are dynamic,
+`forRootAsync` builds them from injected providers:
+
+```ts
+SecretsModule.forRootAsync({
+  imports: [ConfigModule],
+  inject: [ConfigService],
+  useFactory: (config: ConfigService) => ({
+    readMode: 'file',
+    basePath: config.getOrThrow('SECRETS_DIR'),
+  }),
+});
+```
+
 ## Building
 
 Run `nx build secrets` to build the library.
