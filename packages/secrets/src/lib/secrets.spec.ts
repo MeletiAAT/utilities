@@ -4,15 +4,13 @@ import { join } from 'node:path';
 
 import { Secrets } from './secrets.js';
 
-type AppSecrets = {
-  FOO: string;
-  BAR: string;
-};
+type AppSecrets = 'FOO' | 'BAR';
 
 describe('Secrets', () => {
   afterEach(() => {
     delete process.env.FOO;
     delete process.env.BAR;
+    delete process.env.BAZ;
   });
 
   it('reads string secrets from the environment', async () => {
@@ -33,7 +31,7 @@ describe('Secrets', () => {
     expect(secrets.get('FOO')).toBe('foo');
   });
 
-  it('throws when a secret is not set in the environment', async () => {
+  it('throws when a required secret is not set in the environment', async () => {
     delete process.env.FOO;
 
     const secrets = await Secrets.read<AppSecrets>({ readMode: 'environment' });
@@ -49,6 +47,66 @@ describe('Secrets', () => {
     const secrets = await Secrets.read<AppSecrets>();
 
     expect(secrets.get('FOO')).toBe('');
+  });
+
+  it('returns the secret when it is set', async () => {
+    process.env.FOO = 'foo';
+
+    const secrets = await Secrets.read<AppSecrets>();
+
+    expect(secrets.getOpt('FOO')).toBe('foo');
+  });
+
+  it('returns undefined when the secret is not set in the environment', async () => {
+    delete process.env.FOO;
+
+    const secrets = await Secrets.read<AppSecrets>({ readMode: 'environment' });
+
+    expect(secrets.getOpt('FOO')).toBeUndefined();
+  });
+
+  it('returns an empty secret instead of undefined', async () => {
+    process.env.FOO = '';
+
+    const secrets = await Secrets.read<AppSecrets>();
+
+    expect(secrets.getOpt('FOO')).toBe('');
+  });
+
+  it('returns an optional secret when it is set', async () => {
+    process.env.BAZ = 'baz';
+
+    const secrets = await Secrets.read<AppSecrets, 'BAZ'>();
+
+    expect(secrets.getOpt('BAZ')).toBe('baz');
+  });
+
+  it('returns undefined for an optional secret that is not set', async () => {
+    delete process.env.BAZ;
+
+    const secrets = await Secrets.read<AppSecrets, 'BAZ'>();
+
+    expect(secrets.getOpt('BAZ')).toBeUndefined();
+  });
+
+  it('throws when an optional secret is read as required', async () => {
+    delete process.env.BAZ;
+
+    const secrets = await Secrets.read<AppSecrets, 'BAZ'>();
+
+    // @ts-expect-error - an optional secret is only reachable through getOpt
+    expect(() => secrets.get('BAZ')).toThrow(
+      'Secret "BAZ" is not set in the environment.',
+    );
+  });
+
+  it('rejects a key that is not part of the shape', async () => {
+    delete process.env.BAZ;
+
+    const secrets = await Secrets.read<AppSecrets>();
+
+    // @ts-expect-error - every key comes from the declared secrets
+    expect(secrets.getOpt('BAZ')).toBeUndefined();
   });
 
   it('reads files under basePath and trims their contents', async () => {
@@ -89,6 +147,23 @@ describe('Secrets', () => {
     }
   });
 
+  it('returns undefined when no file exists for a secret', async () => {
+    const basePath = await mkdtemp(join(tmpdir(), 'secrets-'));
+    try {
+      await writeFile(join(basePath, 'FOO'), 'foo');
+
+      const secrets = await Secrets.read<AppSecrets>({
+        readMode: 'file',
+        basePath,
+      });
+
+      expect(secrets.getOpt('FOO')).toBe('foo');
+      expect(secrets.getOpt('BAR')).toBeUndefined();
+    } finally {
+      await rm(basePath, { recursive: true, force: true });
+    }
+  });
+
   it('exposes the whole source when no shape is given', async () => {
     process.env.FOO = 'foo';
 
@@ -97,8 +172,8 @@ describe('Secrets', () => {
     expect(secrets.get('FOO')).toBe('foo');
   });
 
-  it('rejects a shape that is not a record of strings', () => {
-    // @ts-expect-error - every secret is a string
+  it('rejects a type argument that is not a property key', () => {
+    // @ts-expect-error - every secret is named by a property key
     void Secrets.read<{ FOO: number }>();
   });
 });

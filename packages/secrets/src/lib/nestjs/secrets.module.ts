@@ -56,7 +56,9 @@ export interface SecretsModuleAsyncOptions
  *
  * @Injectable()
  * export class DatabaseService {
- *   constructor(private readonly secrets: Secrets<AppSecrets>) {}
+ *   constructor(
+ *     private readonly secrets: Secrets<'DB_PASSWORD' | 'PORT'>,
+ *   ) {}
  * }
  * ```
  */

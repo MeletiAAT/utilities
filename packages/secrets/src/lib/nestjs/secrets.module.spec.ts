@@ -9,10 +9,7 @@ import { Secrets } from '../secrets.js';
 import type { SecretsOptions } from '../secrets.js';
 import { SecretsModule } from './secrets.module.js';
 
-type AppSecrets = {
-  FOO: string;
-  BAR: string;
-};
+type AppSecrets = 'FOO' | 'BAR';
 
 describe('SecretsModule', () => {
   afterEach(() => {

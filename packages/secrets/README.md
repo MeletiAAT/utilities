@@ -1,7 +1,8 @@
 # secrets
 
 Owns the secrets read from the environment or from the file system. Every
-secret is a string, so the shape of the data is always a record of strings.
+secret is a string, and every key is either required or optional: a required
+key is read with `get`, an optional key with `getOpt`.
 
 Use `environment` for local development, `file` on Kubernetes.
 
@@ -24,21 +25,26 @@ npm install @meletiaat/secrets --registry=https://npm.pkg.github.com
 ```ts
 import { Secrets } from '@meletiaat/secrets';
 
-type AppSecrets = {
-  DB_PASSWORD: string;
-  PORT: string;
-};
-
-const secrets = await Secrets.read<AppSecrets>({ readMode: 'environment' });
+const secrets = await Secrets.read<'DB_PASSWORD' | 'PORT', 'LOG_LEVEL'>({
+  readMode: 'environment',
+});
 
 secrets.get('DB_PASSWORD'); // string
+secrets.getOpt('LOG_LEVEL'); // string | undefined
 ```
 
 The container owns the secrets, and they are only reachable through
-`get(key)`, which throws when the secret is not set — naming the file that
-does not exist when reading from files. The shape is a plain type: `S` is
-constrained to `Record<string, string>` and defaults to it, so
-`Secrets.read()` without a shape owns the whole source.
+`get(key)`, which reads a required secret and throws when it is not set —
+naming the file that does not exist when reading from files — or
+`getOpt(key)`, which reads a required or an optional secret and returns
+`undefined` instead. A secret set to an empty string is a value: `getOpt`
+returns `''` for it. `Secrets<Required, Optional>` owns
+`SecretsDef<Required, Optional>`: the first type argument is the union of the
+required keys, the second the union of the optional ones, and `get` rejects an
+optional key at compile time, so an optional secret is never read as if the
+source guaranteed it. `Required` defaults to `string` and `Optional` to
+`never`, so `Secrets.read()` without type arguments owns the whole source and
+`get` accepts any key.
 
 | `readMode`                | Source                                                   |
 | ------------------------- | -------------------------------------------------------- |
@@ -46,7 +52,7 @@ constrained to `Record<string, string>` and defaults to it, so
 | `'file'`                  | every file under `basePath`, keyed by file name, trimmed |
 
 ```ts
-const secrets = await Secrets.read<AppSecrets>({
+const secrets = await Secrets.read<'PORT' | 'DB_PASSWORD'>({
   readMode: 'file',
   basePath: '/run/secrets',
 });
@@ -65,11 +71,6 @@ import { Module, Injectable } from '@nestjs/common';
 import { Secrets } from '@meletiaat/secrets';
 import { SecretsModule } from '@meletiaat/secrets/nestjs';
 
-type AppSecrets = {
-  DB_PASSWORD: string;
-  PORT: string;
-};
-
 @Module({
   imports: [
     SecretsModule.forRoot({ readMode: 'file', basePath: '/run/secrets' }),
@@ -79,13 +80,18 @@ export class AppModule {}
 
 @Injectable()
 export class DatabaseService {
-  constructor(private readonly secrets: Secrets<AppSecrets>) {}
+  constructor(
+    private readonly secrets: Secrets<'DB_PASSWORD' | 'PORT', 'LOG_LEVEL'>,
+  ) {}
 
   connect() {
     return new Database(this.secrets.get('DB_PASSWORD'));
   }
 }
 ```
+
+The provided token is the `Secrets` class, so the required and optional keys
+are declared where the instance is injected, as in the example above.
 
 `forRoot` takes the same options as `Secrets.read` and an optional second argument
 (`{ isGlobal: true }`) to register the module globally. When the options themselves are dynamic,
